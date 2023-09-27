@@ -12,6 +12,7 @@
 #include "core/ucc_team.h"
 #include <sys/shm.h>
 #include "mcast/tl_mlx5_mcast.h"
+#include "mcast/tl_mlx5_mcast_helper.h"
 
 static ucc_status_t ucc_tl_mlx5_topo_init(ucc_tl_mlx5_team_t *team)
 {
@@ -71,14 +72,16 @@ UCC_CLASS_INIT_FUNC(ucc_tl_mlx5_team_t, ucc_base_context_t *tl_context,
         return status;
     }
 
-    self->mcast  = NULL;
-    status = ucc_tl_mlx5_mcast_team_init(tl_context, &(self->mcast), &(ctx->mcast), params,
+    self->mcast = NULL;
+    status = ucc_tl_mlx5_mcast_team_post(tl_context, &(self->mcast), &(ctx->mcast), params,
                                          &(UCC_TL_MLX5_TEAM_LIB(self)->cfg.mcast_conf));
     if (UCC_OK != status) {
         return status;
     }
 
-    self->state = TL_MLX5_TEAM_STATE_INIT;
+    self->a2a_state   = TL_MLX5_TEAM_STATE_INIT;
+    self->mcast_state = TL_MLX5_TEAM_STATE_MCAST_INIT;
+
     tl_debug(tl_context->lib, "posted tl team: %p", self);
     return UCC_OK;
 }
@@ -90,6 +93,7 @@ UCC_CLASS_CLEANUP_FUNC(ucc_tl_mlx5_team_t)
     ucc_tl_mlx5_dm_cleanup(self);
     ucc_tl_mlx5_alltoall_cleanup(self);
     ucc_tl_mlx5_topo_cleanup(self);
+    ucc_tl_mlx5_clean_mcast_comm(self->mcast->mcast_comm);
 }
 
 UCC_CLASS_DEFINE_DELETE_FUNC(ucc_tl_mlx5_team_t, ucc_base_team_t);
@@ -101,7 +105,7 @@ ucc_status_t ucc_tl_mlx5_team_destroy(ucc_base_team_t *tl_team)
     return UCC_OK;
 }
 
-ucc_status_t ucc_tl_mlx5_team_create_test(ucc_base_team_t *team)
+static inline ucc_status_t ucc_tl_mlx5_a2a_team_test(ucc_base_team_t *team)
 {
     ucc_tl_mlx5_team_t *tl_team   = ucc_derived_of(team, ucc_tl_mlx5_team_t);
     ucc_team_t         *core_team = UCC_TL_CORE_TEAM(tl_team);
@@ -110,7 +114,7 @@ ucc_status_t ucc_tl_mlx5_team_create_test(ucc_base_team_t *team)
                                      .myrank     = core_team->rank};
     ucc_status_t        status    = UCC_OK;
 
-    switch (tl_team->state) {
+    switch (tl_team->a2a_state) {
     case TL_MLX5_TEAM_STATE_INIT:
         status = ucc_service_allreduce(
             core_team, &tl_team->a2a_status.local, &tl_team->a2a_status.global,
@@ -120,7 +124,7 @@ ucc_status_t ucc_tl_mlx5_team_create_test(ucc_base_team_t *team)
                      "failed to collect global status");
             return status;
         }
-        tl_team->state = TL_MLX5_TEAM_STATE_POSTED;
+        tl_team->a2a_state = TL_MLX5_TEAM_STATE_POSTED;
     case TL_MLX5_TEAM_STATE_POSTED:
         status = ucc_service_coll_test(tl_team->scoll_req);
         if (status < 0) {
@@ -133,11 +137,11 @@ ucc_status_t ucc_tl_mlx5_team_create_test(ucc_base_team_t *team)
             return status;
         }
         ucc_service_coll_finalize(tl_team->scoll_req);
-        tl_team->state = TL_MLX5_TEAM_STATE_ALLTOALL_INIT;
+        tl_team->a2a_state = TL_MLX5_TEAM_STATE_ALLTOALL_INIT;
     case TL_MLX5_TEAM_STATE_ALLTOALL_INIT:
         tl_team->a2a_status.local =
             ucc_tl_mlx5_team_test_alltoall_start(tl_team);
-        tl_team->state = TL_MLX5_TEAM_STATE_ALLTOALL_POSTED;
+        tl_team->a2a_state = TL_MLX5_TEAM_STATE_ALLTOALL_POSTED;
     case TL_MLX5_TEAM_STATE_ALLTOALL_POSTED:
         // coverity[deref_arg:FALSE]
         tl_team->a2a_status.local =
@@ -149,9 +153,37 @@ ucc_status_t ucc_tl_mlx5_team_create_test(ucc_base_team_t *team)
             tl_debug(UCC_TL_TEAM_LIB(tl_team), "failed to init a2a: %s",
                      ucc_status_string(tl_team->a2a_status.local));
         }
+        tl_team->a2a_state = TL_MLX5_TEAM_STATE_ALLTOALL_READY;
+        tl_debug(team->context->lib, "initialized tl a2a team: %p", tl_team);
+    case TL_MLX5_TEAM_STATE_ALLTOALL_READY:
+        return UCC_OK;
+    default:
+        tl_error(team->context->lib, "unknown state during a2a team: %p create", tl_team);
+        return UCC_ERR_NO_RESOURCE;
+    }
+}
+
+ucc_status_t ucc_tl_mlx5_team_create_test(ucc_base_team_t *team)
+{
+    ucc_status_t a2a_status, mcast_status;
+
+    a2a_status = ucc_tl_mlx5_a2a_team_test(team);
+    if (a2a_status < 0) {
+        tl_error(team->context->lib, "alltoall tl team : %p creation failed", team);
+        return a2a_status;
     }
 
-    tl_debug(team->context->lib, "initialized tl team: %p", tl_team);
+    mcast_status = ucc_tl_mlx5_mcast_team_test(team);
+    if (mcast_status < 0) {
+        tl_error(team->context->lib, "mcast tl team: %p creation failed", team);
+        return mcast_status;
+    }
+
+    if (UCC_OK != a2a_status || UCC_OK != mcast_status) {
+        return UCC_INPROGRESS;
+    }
+
+    tl_debug(team->context->lib, "initialized tl team: %p", team);
     return UCC_OK;
 }
 

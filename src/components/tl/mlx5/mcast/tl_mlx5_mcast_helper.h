@@ -10,6 +10,9 @@
 #define MCAST_H_
 #include "tl_mlx5_mcast_progress.h"
 #include "utils/ucc_math.h"
+#include <glob.h>
+#include <net/if.h>
+#include <ifaddrs.h>
 
 #define MIN(a,b) ucc_min(a,b)
 #define MAX(a,b) ucc_max(a,b)
@@ -310,6 +313,9 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_reliable(ucc_tl_mlx5_mcast_coll_com
     return UCC_INPROGRESS;
 }
 
+ucc_status_t ucc_tl_probe_ip_over_ib(const char* ib_dev_list,
+                                     struct sockaddr_storage *addr);
+
 ucc_status_t ucc_tl_setup_mcast(ucc_tl_mlx5_mcast_coll_comm_t *comm);
 
 ucc_status_t ucc_tl_mlx5_mcast_init_qps(ucc_tl_mlx5_mcast_coll_context_t *ctx,
@@ -318,6 +324,13 @@ ucc_status_t ucc_tl_mlx5_mcast_init_qps(ucc_tl_mlx5_mcast_coll_context_t *ctx,
 ucc_status_t ucc_tl_mlx5_mcast_setup_qps(ucc_tl_mlx5_mcast_coll_context_t *ctx,
                                          ucc_tl_mlx5_mcast_coll_comm_t *comm);
 
-ucc_status_t ucc_tl_clean_mcast_comm(ucc_tl_mlx5_mcast_coll_comm_t *comm);
+ucc_status_t ucc_tl_mlx5_clean_mcast_comm(ucc_tl_mlx5_mcast_coll_comm_t *comm);
 
+ucc_status_t ucc_tl_mlx5_mcast_join_mcast_post(ucc_tl_mlx5_mcast_coll_context_t *ctx,
+                                               struct sockaddr_in6 *net_addr,
+                                               int is_root);
+
+ucc_status_t ucc_tl_mlx5_mcast_join_mcast_test(ucc_tl_mlx5_mcast_coll_context_t *ctx,
+                                               struct rdma_cm_event **event,
+                                               int is_root);
 #endif
