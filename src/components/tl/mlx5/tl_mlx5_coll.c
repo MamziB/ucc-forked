@@ -51,6 +51,7 @@ ucc_status_t ucc_tl_mlx5_task_finalize(ucc_coll_task_t *coll_task)
     if (req != NULL) {
         ucc_assert(coll_task->status != UCC_INPROGRESS);
         ucc_free(req);
+        tl_trace(UCC_TASK_LIB(task), "finalizing an mcast task %p", task);
         task->bcast_mcast.req_handle = NULL;
     }
 

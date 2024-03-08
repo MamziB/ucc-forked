@@ -32,9 +32,6 @@ ucc_status_t ucc_tl_mlx5_mcast_context_init(ucc_tl_mlx5_mcast_context_t    *cont
     int                     is_ipv4       = 0;
     struct sockaddr_in     *in_src_addr   = NULL;
     struct rdma_cm_event   *revent        = NULL;
-    char                   *ib            = NULL;
-    char                   *ib_name       = NULL;
-    char                   *port          = NULL;
     int                     active_mtu    = 4096;
     int                     max_mtu       = 4096;
     ucc_tl_mlx5_mcast_coll_context_t *ctx = NULL;
@@ -50,6 +47,9 @@ ucc_status_t ucc_tl_mlx5_mcast_context_init(ucc_tl_mlx5_mcast_context_t    *cont
     int                     user_provided_ib;
     int                     ib_valid;
     const char             *dst;
+    char                   *ib_devname = NULL;
+    int                     devname_len, ib_port;
+    char                    tmp[128], *pos, *end_pos;
 
     mlx5_ctx = ucc_container_of(context, ucc_tl_mlx5_context_t, mcast);
     lib      = mlx5_ctx->super.super.lib;
@@ -87,11 +87,34 @@ ucc_status_t ucc_tl_mlx5_mcast_context_init(ucc_tl_mlx5_mcast_context_t    *cont
         memcpy(ctx->devname, devname, strlen(devname));
         strncat(ctx->devname, ":1", 3);
         user_provided_ib = 0;
+        ctx->ib_port     = 1;
     } else {
         ib_valid = 0;
         /* user has provided the devname now make sure it is valid */
+
+        /* check if port number is also included and extract devname from user str */
+        ib_devname  = mcast_ctx_conf->ib_dev_name;
+        pos         = strstr(ib_devname, ":");
+        end_pos     = ib_devname + strlen(ib_devname);
+        if (!pos) {
+            devname_len = sizeof(tmp) - 1;
+        } else {
+            devname_len = (int)(pos - ib_devname);
+            pos++;
+            errno = 0;
+            ib_port = (int)strtol(pos, &end_pos, 10);
+            if (errno != 0 || pos == end_pos) {
+                tl_debug(lib, "wrong device's port number %d", ib_port);
+                return UCC_ERR_INVALID_PARAM;
+            }
+        }
+        ctx->ib_port = ib_port;
+        strncpy(tmp, ib_devname, devname_len);
+        tmp[devname_len] = '\0';
+        ib_devname       = tmp;
+
         for (i = 0; device_list[i]; ++i) {
-            if (!strcmp(ibv_get_device_name(device_list[i]), mcast_ctx_conf->ib_dev_name)) {
+            if (!strcmp(ibv_get_device_name(device_list[i]), ib_devname)) {
                 ib_valid = 1;
                 break;
             }
@@ -179,18 +202,12 @@ ucc_status_t ucc_tl_mlx5_mcast_context_init(ucc_tl_mlx5_mcast_context_t    *cont
         goto error;
     }
 
-    ib = strdup(ctx->devname);
-    ucc_string_split(ib, ":", 2, &ib_name, &port);
-    ctx->ib_port = atoi(port);
-    ucc_free(ib);
-
     /* Determine MTU */
     if (ibv_query_port(ctx->ctx, ctx->ib_port, &port_attr)) {
         tl_error(lib, "couldn't query port in ctx create, errno %d", errno);
         status = UCC_ERR_NO_RESOURCE;
         goto error;
     }
-
 
     for (i = 0; i < UCC_TL_MLX5_MCAST_MAX_MTU_COUNT; i++) {
         if (mtu_lookup[i][1] == port_attr.max_mtu) {

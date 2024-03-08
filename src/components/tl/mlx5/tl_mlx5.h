@@ -17,7 +17,7 @@
 #include "mcast/tl_mlx5_mcast.h"
 
 #ifndef UCC_TL_MLX5_DEFAULT_SCORE
-#define UCC_TL_MLX5_DEFAULT_SCORE 1
+#define UCC_TL_MLX5_DEFAULT_SCORE 30
 #endif
 
 #ifdef HAVE_PROFILING_TL_MLX5
