@@ -289,14 +289,14 @@ ucc_status_t ucc_tl_mlx5_mcast_clean_ctx(ucc_tl_mlx5_mcast_coll_context_t *ctx)
 
     if (ctx->pd) {
         if (ibv_dealloc_pd(ctx->pd)) {
-            tl_error(ctx->lib, "ibv_dealloc_pd failed errno %d", errno);
+            tl_warn(ctx->lib, "ibv_dealloc_pd failed errno %d", errno);
             return UCC_ERR_NO_RESOURCE;
         }
         ctx->pd = NULL;
     }
 
     if (ctx->id && rdma_destroy_id(ctx->id)) {
-        tl_error(ctx->lib, "rdma_destroy_id failed errno %d", errno);
+        tl_warn(ctx->lib, "rdma_destroy_id failed errno %d", errno);
         return UCC_ERR_NO_RESOURCE;
     }
 
