@@ -47,7 +47,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_p2p_bcast_nb(void *buf, size_t
     args.cb.data           = callback->data;
     args.active_set.size   = 2;
     args.active_set.start  = my_team_rank;
-    args.active_set.stride = dest - my_team_rank;
+    args.active_set.stride = (int)dest - (int)my_team_rank;
 
     status = ucc_collective_init(&args, &req, team);
     if (ucc_unlikely(UCC_OK != status)) {
@@ -103,6 +103,7 @@ ucc_status_t ucc_tl_mlx5_mcast_p2p_send_nb(void* src, size_t size, ucc_rank_t
     callback.cb   = ucc_tl_mlx5_mcast_completion_cb;
     callback.data = obj;
 
+    tl_trace(ctx->lib, "P2P: SEND to %d Msg Size %ld \n", rank, size);
     status = do_send_nb(src, size, my_team_rank, rank, team, ctx, &callback, &req);
 
     if (status < 0) {
@@ -130,6 +131,7 @@ ucc_status_t ucc_tl_mlx5_mcast_p2p_recv_nb(void *dst, size_t size, ucc_rank_t
     callback.cb   = ucc_tl_mlx5_mcast_completion_cb;
     callback.data = obj;
 
+    tl_trace(ctx->lib, "P2P: RECV to %d Msg Size %ld \n", rank, size);
     status = do_recv_nb(dst, size, my_team_rank, rank, team, ctx, &callback, &req);
 
     if (status < 0) {
