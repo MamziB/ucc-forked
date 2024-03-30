@@ -30,7 +30,7 @@
 #define DEF_SL            0
 #define DEF_SRC_PATH_BITS 0
 #define GRH_LENGTH        40
-#define DROP_THRESHOLD    1000000
+#define DROP_THRESHOLD    1000
 #define MAX_COMM_POW2     32
 
 enum {
