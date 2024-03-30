@@ -138,11 +138,13 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_bcast(ucc_tl_mlx5_mcast_coll_req
             }
         }
 
-        /* This function will check if we have to do a round of reliability protocol */
-        status = ucc_tl_mlx5_mcast_r_window_recycle(comm, req);
-        if (UCC_OK != status) {
-            return status;
-        }
+
+    }
+
+    /* This function will check if we have to do a round of reliability protocol */
+    status = ucc_tl_mlx5_mcast_r_window_recycle(comm, req);
+    if (UCC_OK != status) {
+        return status;
     }
 
     if (req->to_send || req->to_recv || (zcopy && comm->psn != comm->last_acked)) {
