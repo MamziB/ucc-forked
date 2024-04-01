@@ -308,10 +308,11 @@ typedef struct ucc_tl_mlx5_mcast_coll_req {
 } ucc_tl_mlx5_mcast_coll_req_t;
 
 typedef struct ucc_tl_mlx5_mcast_oob_p2p_context {
-    ucc_context_h base_ctx;
-    ucc_team_h    base_team;
-    ucc_rank_t    my_team_rank;
-    ucc_subset_t  subset;
+    ucc_context_h   base_ctx;
+    ucc_team_h      base_team;
+    ucc_rank_t      my_team_rank;
+    ucc_subset_t    subset;
+    ucc_base_lib_t *lib;
 } ucc_tl_mlx5_mcast_oob_p2p_context_t;
 
 static inline struct pp_packet* ucc_tl_mlx5_mcast_buf_get_free(ucc_tl_mlx5_mcast_coll_comm_t* comm)

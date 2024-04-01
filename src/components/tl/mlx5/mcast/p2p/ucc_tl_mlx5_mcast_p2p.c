@@ -29,7 +29,8 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_p2p_bcast_nb(void *buf, size_t
                                                              len, ucc_rank_t my_team_rank, ucc_rank_t dest,
                                                              ucc_team_h team, ucc_context_h ctx,
                                                              ucc_coll_callback_t *callback,
-                                                             ucc_coll_req_h *p2p_req, int is_send)
+                                                             ucc_coll_req_h *p2p_req, int is_send,
+                                                             ucc_base_lib_t *lib)
 {
     ucc_status_t    status = UCC_OK;
     ucc_coll_req_h  req    = NULL;
@@ -51,7 +52,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_p2p_bcast_nb(void *buf, size_t
 
     status = ucc_collective_init(&args, &req, team);
     if (ucc_unlikely(UCC_OK != status)) {
-        tl_error(ctx->lib, "nonblocking p2p init failed");
+        tl_error(lib, "nonblocking p2p init failed");
         return status;
     }
 
@@ -59,7 +60,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_p2p_bcast_nb(void *buf, size_t
 
     status = ucc_collective_post(req);
     if (ucc_unlikely(UCC_OK != status)) {
-        tl_error(ctx->lib, "nonblocking p2p post failed");
+        tl_error(lib, "nonblocking p2p post failed");
         return status;
     }
 
@@ -71,19 +72,19 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_p2p_bcast_nb(void *buf, size_t
 static inline ucc_status_t do_send_nb(void *sbuf, size_t len, ucc_rank_t
                                       my_team_rank, ucc_rank_t dest, ucc_team_h team,
                                       ucc_context_h ctx, ucc_coll_callback_t
-                                      *callback, ucc_coll_req_h *req)
+                                      *callback, ucc_coll_req_h *req, ucc_base_lib_t *lib)
 {
     return ucc_tl_mlx5_mcast_do_p2p_bcast_nb(sbuf, len, my_team_rank, dest,
-                                             team, ctx, callback, req, 1);
+                                             team, ctx, callback, req, 1, lib);
 }
 
 static inline ucc_status_t do_recv_nb(void *rbuf, size_t len, ucc_rank_t
                                       my_team_rank, ucc_rank_t dest, ucc_team_h team,
                                       ucc_context_h ctx, ucc_coll_callback_t
-                                      *callback, ucc_coll_req_h *req)
+                                      *callback, ucc_coll_req_h *req, ucc_base_lib_t *lib)
 {
     return ucc_tl_mlx5_mcast_do_p2p_bcast_nb(rbuf, len, my_team_rank, dest,
-                                             team, ctx, callback, req, 0);
+                                             team, ctx, callback, req, 0, lib);
 }
 
 ucc_status_t ucc_tl_mlx5_mcast_p2p_send_nb(void* src, size_t size, ucc_rank_t
@@ -103,11 +104,11 @@ ucc_status_t ucc_tl_mlx5_mcast_p2p_send_nb(void* src, size_t size, ucc_rank_t
     callback.cb   = ucc_tl_mlx5_mcast_completion_cb;
     callback.data = obj;
 
-    tl_trace(ctx->lib, "P2P: SEND to %d Msg Size %ld \n", rank, size);
-    status = do_send_nb(src, size, my_team_rank, rank, team, ctx, &callback, &req);
+    tl_trace(oob_p2p_ctx->lib, "P2P: SEND to %d Msg Size %ld \n", rank, size);
+    status = do_send_nb(src, size, my_team_rank, rank, team, ctx, &callback, &req, oob_p2p_ctx->lib);
 
     if (status < 0) {
-        tl_error(ctx->lib, "nonblocking p2p send failed");
+        tl_error(oob_p2p_ctx->lib, "nonblocking p2p send failed");
         return status;
     }
 
@@ -131,11 +132,11 @@ ucc_status_t ucc_tl_mlx5_mcast_p2p_recv_nb(void *dst, size_t size, ucc_rank_t
     callback.cb   = ucc_tl_mlx5_mcast_completion_cb;
     callback.data = obj;
 
-    tl_trace(ctx->lib, "P2P: RECV to %d Msg Size %ld \n", rank, size);
-    status = do_recv_nb(dst, size, my_team_rank, rank, team, ctx, &callback, &req);
+    tl_trace(oob_p2p_ctx->lib, "P2P: RECV to %d Msg Size %ld \n", rank, size);
+    status = do_recv_nb(dst, size, my_team_rank, rank, team, ctx, &callback, &req, oob_p2p_ctx->lib);
 
     if (status < 0) {
-        tl_error(ctx->lib, "nonblocking p2p recv failed");
+        tl_error(oob_p2p_ctx->lib, "nonblocking p2p recv failed");
         return status;
     }
 
