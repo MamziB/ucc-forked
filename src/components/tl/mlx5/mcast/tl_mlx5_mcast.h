@@ -334,7 +334,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_post_recv_buffers(ucc_tl_mlx5_mcast
     struct pp_packet   *pp     = NULL;
     int                 count  = comm->params.rx_depth - comm->pending_recv;
     int                 i;
-    
+
     if (count <= comm->params.post_recv_thresh) {
         return UCC_OK;
     }

@@ -16,6 +16,7 @@
 
 #define ACK 1
 
+
 #define GET_COMPL_OBJ(_comm, _compl_fn, _pkt_id, _req)                          \
     ({                                                                          \
         void* item;                                                             \
