@@ -68,18 +68,17 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_bcast(ucc_tl_mlx5_mcast_coll_req
     int                            to_recv_left;
     int                            pending_q_size;
 
+
+    status = ucc_tl_mlx5_mcast_check_nack_requests(comm, UINT32_MAX);
+    if (status < 0) {
+        return status;
+    }
+
     if (ucc_unlikely(comm->recv_drop_packet_in_progress)) {
         /* wait till parent resend the dropped packet */
         return UCC_INPROGRESS;
     }
 
-    if (comm->reliable_in_progress) {
-        /* wait till all the children send their ACK for current window */
-        status = ucc_tl_mlx5_mcast_r_window_recycle(comm, req);
-        if (UCC_OK != status) {
-            return status;
-        }
-    }
 
     if (req->to_send || req->to_recv) {
         num_free_win = wsize - (comm->psn - comm->last_acked);

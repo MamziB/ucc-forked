@@ -10,10 +10,35 @@ static ucc_status_t ucc_tl_mlx5_mcast_recv_completion(ucc_tl_mlx5_mcast_p2p_comp
 
 static ucc_status_t ucc_tl_mlx5_mcast_send_completion(ucc_tl_mlx5_mcast_p2p_completion_obj_t *obj);
 
-ucc_status_t ucc_tl_mlx5_mcast_dummy_completion(ucc_tl_mlx5_mcast_p2p_completion_obj_t *obj) // NOLINT
+ucc_status_t ucc_tl_mlx5_mcast_dummy_completion(ucc_tl_mlx5_mcast_p2p_completion_obj_t *comp_obj) // NOLINT
 {
+    ucc_status_t                   status;
+    ucc_tl_mlx5_mcast_coll_comm_t *comm   = (ucc_tl_mlx5_mcast_coll_comm_t*)comp_obj->data[0];
+    unsigned int                   pkt_id = comp_obj->data[2];
+    struct packet                 *p      = (struct packet *)comp_obj->data[1];
 
-    ucc_mpool_put(obj);
+    if (p != NULL) {
+        /* it was a nack packet to our parent */
+        ucc_free(p);
+    }
+
+    if (pkt_id != UINT_MAX) {
+        /* we sent the real data to our child so reduce the nack reqs */
+        ucc_assert(comm->nack_request_in_progress > 0 && comm->nack_requests > 0);
+        comm->p2p_pkt[pkt_id].type = MCAST_P2P_ACK;
+        comm->nack_requests--;
+        status = comm->params.p2p_iface.recv_nb(&comm->p2p_pkt[pkt_id],
+                                                sizeof(struct packet), comm->p2p_pkt[pkt_id].from,
+                                                comm->p2p_ctx, GET_COMPL_OBJ(comm,
+                                                ucc_tl_mlx5_mcast_recv_completion, pkt_id, NULL));
+        if (status <  0) {
+            return status;
+        }
+        comm->nack_request_in_progress--;
+    }
+
+    ucc_mpool_put(comp_obj);
+
     return UCC_OK;
 }
 
@@ -26,26 +51,20 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_resend_packet_reliable(ucc_tl_mlx5_
 
     ucc_assert(pp->psn == psn);
     
-    tl_trace(comm->lib, "[comm %d, rank %d] Send data NACK: to %d, psn %d, context %ld\n",
+    tl_trace(comm->lib, "[comm %d, rank %d] Send data NACK: to %d, psn %d, context %ld nack_requests %d \n",
                          comm->comm_id, comm->rank,
-                         comm->p2p_pkt[p2p_pkt_id].from, psn, pp->context);
+                         comm->p2p_pkt[p2p_pkt_id].from, psn, pp->context, comm->nack_requests);
+
+    comm->nack_request_in_progress++;
 
     status = comm->params.p2p_iface.send_nb((void*) (pp->context ? pp->context : pp->buf),
                                             pp->length, comm->p2p_pkt[p2p_pkt_id].from,
                                             comm->p2p_ctx, GET_COMPL_OBJ(comm,
-                                            ucc_tl_mlx5_mcast_dummy_completion, p2p_pkt_id, NULL));
+                                            ucc_tl_mlx5_mcast_dummy_completion, NULL, p2p_pkt_id));
     if (status <  0) {
         return status;
     }
 
-    status = comm->params.p2p_iface.recv_nb(&comm->p2p_pkt[p2p_pkt_id],
-                                            sizeof(struct packet), comm->p2p_pkt[p2p_pkt_id].from,
-                                            comm->p2p_ctx, GET_COMPL_OBJ(comm,
-                                            ucc_tl_mlx5_mcast_recv_completion, p2p_pkt_id, NULL));
-    if (status <  0) {
-        return status;
-    }
-    
     return UCC_OK;
 }
 
@@ -55,7 +74,7 @@ ucc_status_t ucc_tl_mlx5_mcast_check_nack_requests(ucc_tl_mlx5_mcast_coll_comm_t
     int          i;
     struct pp_packet *pp;
 
-    if (!comm->nack_requests) {
+    if (!comm->nack_requests || comm->nack_request_in_progress) {
         return UCC_OK;
     }
 
@@ -67,8 +86,6 @@ ucc_status_t ucc_tl_mlx5_mcast_check_nack_requests(ucc_tl_mlx5_mcast_coll_comm_t
                 if (status != UCC_OK) {
                     break;
                 }
-                comm->p2p_pkt[i].type = MCAST_P2P_ACK;
-                comm->nack_requests--;
             }
         }
     } else {
@@ -81,8 +98,6 @@ ucc_status_t ucc_tl_mlx5_mcast_check_nack_requests(ucc_tl_mlx5_mcast_coll_comm_t
                     if (status < 0) {
                         break;
                     }
-                    comm->p2p_pkt[i].type = MCAST_P2P_ACK;
-                    comm->nack_requests--;
                 }
             }
         }
@@ -144,34 +159,36 @@ static ucc_status_t ucc_tl_mlx5_mcast_recv_data_completion(ucc_tl_mlx5_mcast_p2p
 static inline ucc_status_t ucc_tl_mlx5_mcast_reliable_send_NACK(ucc_tl_mlx5_mcast_coll_comm_t* comm,
                                                                 ucc_tl_mlx5_mcast_coll_req_t *req)
 {
+    ucc_status_t      status = UCC_OK;
+    uint32_t          psn    = ucc_tl_mlx5_mcast_find_nack_psn(comm, req);
     struct pp_packet *pp;
     ucc_rank_t        parent;
-    ucc_status_t      status;
+    struct packet    *p;
 
-    struct packet p = {
-        .type    = MCAST_P2P_NACK,
-        .psn     = ucc_tl_mlx5_mcast_find_nack_psn(comm, req),
-        .from    = comm->rank,
-        .comm_id = comm->comm_id,
-    };
+
+    p          = ucc_calloc(1, sizeof(struct packet));
+    p->type    = MCAST_P2P_NACK;
+    p->psn     = psn;
+    p->from    = comm->rank;
+    p->comm_id = comm->comm_id;
 
     parent = ucc_tl_mlx5_mcast_get_nack_parent(req);
 
     comm->nacks_counter++;
 
-    status = comm->params.p2p_iface.send_nb(&p, sizeof(struct packet), parent,
+    status = comm->params.p2p_iface.send_nb(p, sizeof(struct packet), parent,
                                             comm->p2p_ctx, GET_COMPL_OBJ(comm,
-                                            ucc_tl_mlx5_mcast_dummy_completion, p.psn, NULL));
+                                            ucc_tl_mlx5_mcast_dummy_completion, p, UINT_MAX));
     if (status <  0) {
         return status;
     }
    
     tl_trace(comm->lib, "[comm %d, rank %d] Sent NAK : parent %d, psn %d",
-             comm->comm_id, comm->rank, parent, p.psn);
+             comm->comm_id, comm->rank, parent, psn);
 
     // Prepare to obtain the data.
     pp         = ucc_tl_mlx5_mcast_buf_get_free(comm);
-    pp->psn    = p.psn;
+    pp->psn    = psn;
     pp->length = PSN_TO_RECV_LEN(pp->psn, req, comm);
 
     comm->recv_drop_packet_in_progress = true;
@@ -225,7 +242,6 @@ static ucc_status_t ucc_tl_mlx5_mcast_recv_completion(ucc_tl_mlx5_mcast_p2p_comp
     int                            pkt_id = (int)obj->data[1];
     uint32_t                       psn;
     struct pp_packet              *pp;
-    ucc_status_t                   status;
 
     ucc_assert(comm->comm_id == comm->p2p_pkt[pkt_id].comm_id);
 
@@ -234,19 +250,12 @@ static ucc_status_t ucc_tl_mlx5_mcast_recv_completion(ucc_tl_mlx5_mcast_p2p_comp
         psn = comm->p2p_pkt[pkt_id].psn;
         pp  = comm->r_window[psn % comm->wsize];
         
-        tl_trace(comm->lib, "[comm %d, rank %d] Got NACK: from %d, psn %d, avail %d",
+        tl_trace(comm->lib, "[comm %d, rank %d] Got NACK: from %d, psn %d, avail %d pkt_id %d",
                              comm->comm_id, comm->rank,
-                             comm->p2p_pkt[pkt_id].from, psn, pp->psn == psn);
+                             comm->p2p_pkt[pkt_id].from, psn, pp->psn == psn, pkt_id);
 
-        if (pp->psn == psn) {
-            status = ucc_tl_mlx5_mcast_resend_packet_reliable(comm, pkt_id);
-            if (status < 0) {
-                return status;
-            }
-        } else {
-            comm->p2p_pkt[pkt_id].type = MCAST_P2P_NEED_NACK_SEND;
-            comm->nack_requests++;
-        }
+        comm->p2p_pkt[pkt_id].type = MCAST_P2P_NEED_NACK_SEND;
+        comm->nack_requests++;
 
     } else {
         comm->racks_n++;
