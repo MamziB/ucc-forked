@@ -138,7 +138,6 @@ typedef struct ucc_tl_mlx5_mcast_coll_context {
     struct rdma_cm_id             *id;
     struct rdma_event_channel     *channel;
     ucc_mpool_t                    compl_objects_mp;
-    ucc_mpool_t                    nack_reqs_mp;
     ucc_list_link_t                pending_nacks_list;
     ucc_rcache_t                  *rcache;
     ucc_tl_mlx5_mcast_ctx_params_t params;
@@ -232,6 +231,7 @@ typedef struct ucc_tl_mlx5_mcast_coll_comm {
     ucc_rank_t                              parents[MAX_COMM_POW2];
     ucc_rank_t                              children[MAX_COMM_POW2];
     int                                     nack_requests;
+    int                                     nack_request_in_progress;
     int                                     nacks_counter;
     int                                     n_prep_reliable;
     int                                     n_mcast_reliable;
