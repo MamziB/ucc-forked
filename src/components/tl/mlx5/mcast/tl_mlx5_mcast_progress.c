@@ -10,7 +10,7 @@ static ucc_status_t ucc_tl_mlx5_mcast_recv_completion(ucc_tl_mlx5_mcast_p2p_comp
 
 static ucc_status_t ucc_tl_mlx5_mcast_send_completion(ucc_tl_mlx5_mcast_p2p_completion_obj_t *obj);
 
-ucc_status_t ucc_tl_mlx5_mcast_dummy_completion(ucc_tl_mlx5_mcast_p2p_completion_obj_t *comp_obj) // NOLINT
+static ucc_status_t ucc_tl_mlx5_mcast_reliability_send_completion(ucc_tl_mlx5_mcast_p2p_completion_obj_t *comp_obj)
 {
     ucc_status_t                   status;
     ucc_tl_mlx5_mcast_coll_comm_t *comm   = (ucc_tl_mlx5_mcast_coll_comm_t*)comp_obj->data[0];
@@ -60,7 +60,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_resend_packet_reliable(ucc_tl_mlx5_
     status = comm->params.p2p_iface.send_nb((void*) (pp->context ? pp->context : pp->buf),
                                             pp->length, comm->p2p_pkt[p2p_pkt_id].from,
                                             comm->p2p_ctx, GET_COMPL_OBJ(comm,
-                                            ucc_tl_mlx5_mcast_dummy_completion, NULL, p2p_pkt_id));
+                                            ucc_tl_mlx5_mcast_reliability_send_completion, NULL, p2p_pkt_id));
     if (status <  0) {
         return status;
     }
@@ -178,7 +178,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_reliable_send_NACK(ucc_tl_mlx5_mcas
 
     status = comm->params.p2p_iface.send_nb(p, sizeof(struct packet), parent,
                                             comm->p2p_ctx, GET_COMPL_OBJ(comm,
-                                            ucc_tl_mlx5_mcast_dummy_completion, p, UINT_MAX));
+                                            ucc_tl_mlx5_mcast_reliability_send_completion, p, UINT_MAX));
     if (status <  0) {
         return status;
     }
