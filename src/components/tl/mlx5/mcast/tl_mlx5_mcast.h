@@ -41,7 +41,8 @@ enum {
 enum {
     MCAST_P2P_NACK,
     MCAST_P2P_ACK,
-    MCAST_P2P_NEED_NACK_SEND
+    MCAST_P2P_NEED_NACK_SEND,
+    MCAST_P2P_NACK_SEND_PENDING
 };
 
 enum {
@@ -231,7 +232,6 @@ typedef struct ucc_tl_mlx5_mcast_coll_comm {
     ucc_rank_t                              parents[MAX_COMM_POW2];
     ucc_rank_t                              children[MAX_COMM_POW2];
     int                                     nack_requests;
-    int                                     nack_request_in_progress;
     int                                     nacks_counter;
     int                                     n_prep_reliable;
     int                                     n_mcast_reliable;

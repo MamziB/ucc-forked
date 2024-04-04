@@ -24,7 +24,8 @@ static ucc_status_t ucc_tl_mlx5_mcast_reliability_send_completion(ucc_tl_mlx5_mc
 
     if (pkt_id != UINT_MAX) {
         /* we sent the real data to our child so reduce the nack reqs */
-        ucc_assert(comm->nack_request_in_progress > 0 && comm->nack_requests > 0);
+        ucc_assert(comm->nack_requests > 0);
+        ucc_assert(comm->p2p_pkt[pkt_id].type == MCAST_P2P_NACK_SEND_PENDING);
         comm->p2p_pkt[pkt_id].type = MCAST_P2P_ACK;
         comm->nack_requests--;
         status = comm->params.p2p_iface.recv_nb(&comm->p2p_pkt[pkt_id],
@@ -34,7 +35,6 @@ static ucc_status_t ucc_tl_mlx5_mcast_reliability_send_completion(ucc_tl_mlx5_mc
         if (status <  0) {
             return status;
         }
-        comm->nack_request_in_progress--;
     }
 
     ucc_mpool_put(comp_obj);
@@ -50,12 +50,13 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_resend_packet_reliable(ucc_tl_mlx5_
     ucc_status_t      status;
 
     ucc_assert(pp->psn == psn);
+    ucc_assert(comm->p2p_pkt[p2p_pkt_id].type == MCAST_P2P_NEED_NACK_SEND);
+
+    comm->p2p_pkt[p2p_pkt_id].type = MCAST_P2P_NACK_SEND_PENDING;
     
     tl_trace(comm->lib, "[comm %d, rank %d] Send data NACK: to %d, psn %d, context %ld nack_requests %d \n",
                          comm->comm_id, comm->rank,
                          comm->p2p_pkt[p2p_pkt_id].from, psn, pp->context, comm->nack_requests);
-
-    comm->nack_request_in_progress++;
 
     status = comm->params.p2p_iface.send_nb((void*) (pp->context ? pp->context : pp->buf),
                                             pp->length, comm->p2p_pkt[p2p_pkt_id].from,
@@ -74,7 +75,7 @@ ucc_status_t ucc_tl_mlx5_mcast_check_nack_requests(ucc_tl_mlx5_mcast_coll_comm_t
     int          i;
     struct pp_packet *pp;
 
-    if (!comm->nack_requests || comm->nack_request_in_progress) {
+    if (!comm->nack_requests) {
         return UCC_OK;
     }
 
@@ -242,6 +243,7 @@ static ucc_status_t ucc_tl_mlx5_mcast_recv_completion(ucc_tl_mlx5_mcast_p2p_comp
     int                            pkt_id = (int)obj->data[1];
     uint32_t                       psn;
     struct pp_packet              *pp;
+    ucc_status_t                   status;
 
     ucc_assert(comm->comm_id == comm->p2p_pkt[pkt_id].comm_id);
 
@@ -257,7 +259,16 @@ static ucc_status_t ucc_tl_mlx5_mcast_recv_completion(ucc_tl_mlx5_mcast_p2p_comp
         comm->p2p_pkt[pkt_id].type = MCAST_P2P_NEED_NACK_SEND;
         comm->nack_requests++;
 
+        if (pp->psn == psn) {
+            /* parent already has this packet so it is ready to forward it to its child */
+            status = ucc_tl_mlx5_mcast_resend_packet_reliable(comm, pkt_id);
+            if (status != UCC_OK) {
+                return status;
+            }
+        }
+
     } else {
+        ucc_assert(comm->p2p_pkt[pkt_id].type == MCAST_P2P_ACK);
         comm->racks_n++;
     }
 
