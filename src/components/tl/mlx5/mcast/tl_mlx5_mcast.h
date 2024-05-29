@@ -40,6 +40,24 @@
 #define ONE_SIDED_ASYNCHRONOUS_PROTO        2
 #define ONE_SIDED_SLOTS_COUNT               2                /* number of memory slots during async design */
 #define ONE_SIDED_SLOTS_INFO_SIZE           sizeof(uint32_t) /* size of metadata prepended to each slots in bytes */
+#define ONE_SIDED_INVALID                  -1
+#define ONE_SIDED_VALID                    -2
+#define ONE_SIDED_PENDING_INFO             -3
+#define ONE_SIDED_PENDING_DATA             -4
+#define ONE_SIDED_MAX_ALLGATHER_COUNTER     32
+#define ONE_SIDED_MAX_CONCURRENT_LEVEL      64
+
+/* 32 here is the bit count of ib send immediate */
+#define ONE_SIDED_MAX_PACKET_COUNT(_max_count)                              \
+        do {                                                                \
+            int pow2;                                                       \
+            int tmp;                                                        \
+            pow2       = log(ONE_SIDED_RELIABILITY_MAX_TEAM_SIZE) / log(2); \
+            tmp        = 32 - pow2;                                         \
+            pow2       = log(ONE_SIDED_MAX_ALLGATHER_COUNTER) / log(2);     \
+            tmp        = tmp - pow2;                                        \
+            _max_count = pow(2, tmp);                                       \
+        } while(0);
 
 enum {
     MCAST_PROTO_EAGER,     /* Internal staging buffers */
@@ -285,9 +303,11 @@ typedef struct ucc_tl_mlx5_mcast_coll_comm {
     int                                         mcast_trigger_reliability;
     struct ibv_mr                              *one_sided_slots_mr;
     ucc_tl_mlx5_mcast_slot_mem_info_t          *one_sided_async_slots_info_list;
-    int                                         one_sided_async_slots_size;
+    int                                         one_sided_async_slots_size; // size of one memory slot that is used
+                                                                            // to receive remote packet
     char                                       *one_sided_slots_buffer;
-    int                                         one_sided_slots_state;
+    int                                         one_sided_slots_state; // if set, it means sbuf has already 
+                                                                       // been copied into local slot
     struct pp_packet                           *r_window[1]; // note: do not add any new variable after here
 } ucc_tl_mlx5_mcast_coll_comm_t;
 
