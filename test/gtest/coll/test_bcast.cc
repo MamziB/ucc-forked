@@ -272,10 +272,22 @@ UCC_TEST_P(test_bcast_alg,) {
     }
 }
 
-ucc_job_env_t two_step_env = {{"UCC_CL_HIER_TUNE", "bcast:@2step:0-inf:inf"},
-                              {"UCC_CLS", "all"}};
-ucc_job_env_t dbt_env      = {{"UCC_TL_UCP_TUNE", "bcast:@dbt:0-inf:inf"},
-                              {"UCC_CLS", "basic"}};
+ucc_job_env_t two_step_env   = {{"UCC_CL_HIER_TUNE", "bcast:@2step:0-inf:inf"},
+                                {"UCC_CLS", "all"}};
+ucc_job_env_t dbt_env        = {{"UCC_TL_UCP_TUNE", "bcast:@dbt:0-inf:inf"},
+                                {"UCC_CLS", "basic"}};
+ucc_job_env_t host_mcast_env = {{"UCC_TLS", "ucp,mlx5"},
+                                {"UCC_TL_MLX5_TUNE", "inf"},
+                                {"UCC_TL_MLX5_MCAST_ENABLE", "1"},
+                                {"UCC_TL_MLX5_MCAST_NET_DEVICE", "mlx5_0"},
+                                {"UCC_TL_MLX5_MCAST_CUDA_MEM_ENABLE", "0"},
+                                {"UCC_TL_MLX5_MIN_TEAM_SIZE", "2"}};
+ucc_job_env_t cuda_mcast_env = {{"UCC_TLS", "ucp,mlx5"},
+                                {"UCC_TL_MLX5_TUNE", "inf"},
+                                {"UCC_TL_MLX5_MCAST_ENABLE", "1"},
+                                {"UCC_TL_MLX5_MCAST_NET_DEVICE", "mlx5_0"},
+                                {"UCC_TL_MLX5_MCAST_CUDA_MEM_ENABLE", "1"},
+                                {"UCC_TL_MLX5_MIN_TEAM_SIZE", "2"}};
 INSTANTIATE_TEST_CASE_P(
     , test_bcast_alg,
     ::testing::Combine(
@@ -285,6 +297,7 @@ INSTANTIATE_TEST_CASE_P(
 #else
         ::testing::Values(UCC_MEMORY_TYPE_HOST),
 #endif
-        ::testing::Values(two_step_env, dbt_env), //env
+        ::testing::Values(two_step_env, dbt_env, host_mcast_env,
+                          cuda_mcast_env), //env
         ::testing::Values(8, 65536), // count
         ::testing::Values(15,16))); // n_procs

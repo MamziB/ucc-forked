@@ -209,6 +209,7 @@ ucc_mc_cpu_t ucc_mc_cpu = {
     .super.ops.mem_alloc          = ucc_mc_cpu_mem_pool_alloc_with_init,
     .super.ops.mem_free           = ucc_mc_cpu_mem_pool_free,
     .super.ops.memcpy             = ucc_mc_cpu_memcpy,
+    .super.ops.sync_memcpy        = ucc_mc_cpu_memcpy,
     .super.ops.memset             = ucc_mc_cpu_memset,
     .super.ops.flush              = NULL,
     .super.config_table =

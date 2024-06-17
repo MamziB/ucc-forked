@@ -228,9 +228,31 @@ ucc_mc_cuda_mem_pool_alloc_with_init(ucc_mc_buffer_header_t **h_ptr,
     }
 }
 
-static ucc_status_t ucc_mc_cuda_memcpy(void *dst, const void *src, size_t len,
-                                       ucc_memory_type_t dst_mem,
-                                       ucc_memory_type_t src_mem)
+static ucc_status_t ucc_mc_cuda_sync_memcpy(void *dst, const void *src, size_t len,
+                                            ucc_memory_type_t dst_mem,
+                                            ucc_memory_type_t src_mem)
+{
+    ucc_status_t status;
+
+    ucc_assert(dst_mem == UCC_MEMORY_TYPE_CUDA ||
+               src_mem == UCC_MEMORY_TYPE_CUDA ||
+               dst_mem == UCC_MEMORY_TYPE_CUDA_MANAGED ||
+               src_mem == UCC_MEMORY_TYPE_CUDA_MANAGED);
+
+    status = CUDA_FUNC(cudaMemcpy(dst, src, len, cudaMemcpyDefault));
+    if (ucc_unlikely(status != UCC_OK)) {
+        mc_error(&ucc_mc_cuda.super,
+                 "failed to launch cudaMemcpy, dst %p, src %p, len %zd",
+                 dst, src, len);
+        return status;
+    }
+
+    return status;
+}
+
+static ucc_status_t ucc_mc_cuda_async_memcpy(void *dst, const void *src, size_t len,
+                                             ucc_memory_type_t dst_mem,
+                                             ucc_memory_type_t src_mem)
 {
     ucc_status_t status;
     ucc_mc_cuda_resources_t *resources;
@@ -431,7 +453,8 @@ ucc_mc_cuda_t ucc_mc_cuda = {
     .super.ops.mem_query          = ucc_mc_cuda_mem_query,
     .super.ops.mem_alloc          = ucc_mc_cuda_mem_pool_alloc_with_init,
     .super.ops.mem_free           = ucc_mc_cuda_mem_pool_free,
-    .super.ops.memcpy             = ucc_mc_cuda_memcpy,
+    .super.ops.memcpy             = ucc_mc_cuda_async_memcpy,
+    .super.ops.sync_memcpy        = ucc_mc_cuda_sync_memcpy,
     .super.ops.memset             = ucc_mc_cuda_memset,
     .super.ops.flush              = ucc_mc_cuda_flush_not_supported,
     .super.config_table =

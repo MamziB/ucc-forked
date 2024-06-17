@@ -370,6 +370,7 @@ ucc_mc_rocm_t ucc_mc_rocm = {
     .super.ops.mem_alloc          = ucc_mc_rocm_mem_pool_alloc_with_init,
     .super.ops.mem_free           = ucc_mc_rocm_mem_pool_free,
     .super.ops.memcpy             = ucc_mc_rocm_memcpy,
+    .super.ops.sync_memcpy        = ucc_mc_rocm_memcpy,
     .super.ops.memset             = ucc_mc_rocm_memset,
     .super.config_table =
         {
