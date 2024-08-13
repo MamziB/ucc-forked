@@ -264,13 +264,12 @@ ucc_status_t ucc_tl_mlx5_mcast_coll_setup_comm_resources(ucc_tl_mlx5_mcast_coll_
 
     status = ucc_mc_memset(comm->pp_buf, 0, buf_size * comm->buf_n, supported_mem_type);
     if (status != UCC_OK) {
-        tl_error(comm->ctx->lib, "could not cuda memset");
+        tl_error(comm->ctx->lib, "could not memset");
         goto error;
     }
 
     comm->pp_mr = ibv_reg_mr(comm->ctx->pd, comm->pp_buf, buf_size * comm->buf_n,
-                             IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE |
-                             IBV_ACCESS_REMOTE_READ);
+                             IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE);
     if (!comm->pp_mr) {
         tl_error(comm->ctx->lib, "could not register pp_buf device mr, errno %d", errno);
         status = UCC_ERR_NO_RESOURCE;
