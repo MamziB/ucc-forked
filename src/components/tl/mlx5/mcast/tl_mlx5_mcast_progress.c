@@ -387,7 +387,8 @@ ucc_status_t ucc_tl_mlx5_mcast_process_packet(ucc_tl_mlx5_mcast_coll_comm_t *com
             mem_type = UCC_MEMORY_TYPE_HOST;
         }
 
-        status = ucc_mc_sync_memcpy(dest, (void*) pp->buf, pp->length,
+       status = ucc_mc_sync_memcpy(dest, (void*) pp->buf, pp->length,
+       // status = ucc_mc_memcpy(dest, (void*) pp->buf, pp->length,
                                     mem_type, mem_type);
         if (ucc_unlikely(status != UCC_OK)) {
             tl_error(comm->lib, "failed to copy buffer");

@@ -10,6 +10,29 @@
 #include "utils/ucc_math.h"
 #include "tl_mlx5.h"
 
+
+static inline double measure_memcpy_latency(void *dst_buf, void *src_buf, size_t msg_size, ucc_memory_type_t src_mem_type, ucc_memory_type_t dst_mem_type, int iterations) {
+    struct timeval start, end;
+    double total_latency = 0.0;
+
+//    ucc_mc_memcpy(dst_buf, src_buf, msg_size, dst_mem_type, src_mem_type);
+
+    for (int i = 0; i < iterations; i++) {
+        gettimeofday(&start, NULL);
+        ucc_mc_memcpy(dst_buf, src_buf, msg_size, dst_mem_type, src_mem_type);
+        gettimeofday(&end, NULL);
+
+        double latency = (end.tv_sec - start.tv_sec) * 1e6 + (end.tv_usec - start.tv_usec);
+        total_latency += latency;
+    }
+
+    double avg_latency = total_latency / iterations;
+
+
+    return avg_latency;
+}
+
+
 static inline ucc_status_t ucc_tl_mlx5_mcast_poll_send(ucc_tl_mlx5_mcast_coll_comm_t *comm)
 {
     struct ibv_wc wc;
@@ -77,7 +100,22 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_send(ucc_tl_mlx5_mcast_coll_comm_t 
         if (zcopy) {
             pp->context = (uintptr_t) PTR_OFFSET(req->ptr, offset);
         } else {
-            status = ucc_mc_sync_memcpy((void*) pp->buf, PTR_OFFSET(req->ptr, offset), length,
+            /////
+            if (1) {
+            size_t msg_size = length;
+            ucc_memory_type_t src_mem_type = UCC_MEMORY_TYPE_CUDA;
+            ucc_memory_type_t dst_mem_type = UCC_MEMORY_TYPE_CUDA;
+            int iterations = 1;
+
+            double avg_latency = measure_memcpy_latency((void*) pp->buf, PTR_OFFSET(req->ptr, offset), msg_size, src_mem_type, dst_mem_type, iterations);
+            printf("Average latency for ucc_mc_memcpy of %zu bytes from %d to %d over %d iterations: %f microseconds\n",
+                   msg_size, src_mem_type, dst_mem_type, iterations, avg_latency);
+
+            }
+
+            ////
+            //status = ucc_mc_sync_memcpy((void*) pp->buf, PTR_OFFSET(req->ptr, offset), length,
+            status = ucc_mc_memcpy((void*) pp->buf, PTR_OFFSET(req->ptr, offset), length,
                                         mem_type, mem_type);
             if (ucc_unlikely(status != UCC_OK)) {
                 tl_error(comm->lib, "failed to copy cuda buffer");

@@ -250,25 +250,30 @@ static ucc_status_t ucc_mc_cuda_sync_memcpy(void *dst, const void *src, size_t l
     return status;
 }
 
+    ucc_mc_cuda_resources_t *resources_static;
+    int got_resource=0;
 static ucc_status_t ucc_mc_cuda_async_memcpy(void *dst, const void *src, size_t len,
                                              ucc_memory_type_t dst_mem,
                                              ucc_memory_type_t src_mem)
 {
     ucc_status_t status;
-    ucc_mc_cuda_resources_t *resources;
+
 
     ucc_assert(dst_mem == UCC_MEMORY_TYPE_CUDA ||
                src_mem == UCC_MEMORY_TYPE_CUDA ||
                dst_mem == UCC_MEMORY_TYPE_CUDA_MANAGED ||
-               src_mem == UCC_MEMORY_TYPE_CUDA_MANAGED);
-
-    status = ucc_mc_cuda_get_resources(&resources);
-    if (ucc_unlikely(status) != UCC_OK) {
-        return status;
+               src_mem == UCC_MEMORY_TYPE_CUDA_MANAGED);    
+    if (got_resource==0) {
+        fprintf(stderr, "ucc_mc_cuda_get_resources\n");
+        status = ucc_mc_cuda_get_resources(&resources_static);
+        if (ucc_unlikely(status) != UCC_OK) {
+            return status;
+        }
+        got_resource=1;
     }
 
     status = CUDA_FUNC(cudaMemcpyAsync(dst, src, len, cudaMemcpyDefault,
-                                       resources->stream));
+                                       resources_static->stream));
     if (ucc_unlikely(status != UCC_OK)) {
         mc_error(&ucc_mc_cuda.super,
                  "failed to launch cudaMemcpyAsync, dst %p, src %p, len %zd",
@@ -276,7 +281,7 @@ static ucc_status_t ucc_mc_cuda_async_memcpy(void *dst, const void *src, size_t 
         return status;
     }
 
-    status = CUDA_FUNC(cudaStreamSynchronize(resources->stream));
+    status = CUDA_FUNC(cudaStreamSynchronize(resources_static->stream));
 
     return status;
 }

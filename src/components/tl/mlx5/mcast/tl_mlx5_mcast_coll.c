@@ -114,7 +114,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_bcast(ucc_tl_mlx5_mcast_coll_req
             if (to_recv == to_recv_left) {
                 /* We didn't receive anything: increase the stalled counter and get ready for
                    drop event */
-                if (comm->stalled++ >= DROP_THRESHOLD) {
+                if (0 && comm->stalled++ >= DROP_THRESHOLD) {
 
                     tl_trace(comm->lib, "Did not receive the packet with psn in"
                             " current window range, so get ready for drop"
