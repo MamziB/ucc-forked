@@ -7,6 +7,8 @@
 #include "tl_mlx5_coll.h"
 #include "tl_mlx5_mcast_helper.h"
 #include "tl_mlx5_mcast_rcache.h"
+#include <cuda.h>
+#include <cuda_runtime.h>
 
 static inline ucc_status_t ucc_tl_mlx5_mcast_r_window_recycle(ucc_tl_mlx5_mcast_coll_comm_t *comm,
                                                               ucc_tl_mlx5_mcast_coll_req_t  *req)
@@ -211,6 +213,9 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_prepare_bcast(void* buf, size_t siz
     req->first_send_psn = req->start_psn;
     req->to_send        = req->am_root ? req->num_packets : 0;
     req->to_recv        = req->am_root ? 0 : req->num_packets;
+
+
+//    cudaHostRegister(req->ptr, req->length, cudaHostRegisterMapped);
 
     return UCC_OK;
 }
