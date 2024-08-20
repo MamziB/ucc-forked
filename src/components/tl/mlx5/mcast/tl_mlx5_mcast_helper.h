@@ -17,9 +17,11 @@ static inline double measure_memcpy_latency(void *dst_buf, void *src_buf, size_t
 
 //    ucc_mc_memcpy(dst_buf, src_buf, msg_size, dst_mem_type, src_mem_type);
 
+    fprintf(stderr, "mamzi \n ");
     for (int i = 0; i < iterations; i++) {
         gettimeofday(&start, NULL);
-        ucc_mc_memcpy(dst_buf, src_buf, msg_size, dst_mem_type, src_mem_type);
+        //ucc_mc_memcpy(dst_buf, src_buf, msg_size, dst_mem_type, src_mem_type);
+        ucc_mc_memcpy(src_buf, src_buf, msg_size, dst_mem_type, src_mem_type);
         gettimeofday(&end, NULL);
 
         double latency = (end.tv_sec - start.tv_sec) * 1e6 + (end.tv_usec - start.tv_usec);

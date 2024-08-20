@@ -272,6 +272,15 @@ static ucc_status_t ucc_mc_cuda_async_memcpy(void *dst, const void *src, size_t 
         got_resource=1;
     }
 
+    cudaEvent_t event;
+    // Create the CUDA event
+    status = CUDA_FUNC(cudaEventCreateWithFlags(&event, cudaEventDisableTiming));
+    if (ucc_unlikely(status != UCC_OK)) {
+        mc_error(&ucc_mc_cuda.super, "failed to create CUDA event");
+        return status;
+    }
+
+
     status = CUDA_FUNC(cudaMemcpyAsync(dst, src, len, cudaMemcpyDefault,
                                        resources_static->stream));
     if (ucc_unlikely(status != UCC_OK)) {
@@ -281,7 +290,32 @@ static ucc_status_t ucc_mc_cuda_async_memcpy(void *dst, const void *src, size_t 
         return status;
     }
 
-    status = CUDA_FUNC(cudaStreamSynchronize(resources_static->stream));
+  //  status = CUDA_FUNC(cudaStreamSynchronize(resources_static->stream));
+
+
+
+
+    // Record the event on the same stream
+    status = CUDA_FUNC(cudaEventRecord(event, resources_static->stream));
+    if (ucc_unlikely(status != UCC_OK)) {
+        mc_error(&ucc_mc_cuda.super, "failed to record CUDA event");
+        cudaEventDestroy(event); // Clean up the event
+        return status;
+    }
+
+    // Wait for the event to complete
+    status = CUDA_FUNC(cudaEventSynchronize(event));
+    if (ucc_unlikely(status != UCC_OK)) {
+        mc_error(&ucc_mc_cuda.super, "failed to synchronize CUDA event");
+        cudaEventDestroy(event); // Clean up the event
+        return status;
+    }
+
+    // Clean up the event
+    cudaEventDestroy(event);
+
+
+
 
     return status;
 }
