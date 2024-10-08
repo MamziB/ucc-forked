@@ -33,6 +33,12 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_r_window_recycle(ucc_tl_mlx5_mcast_
             return status;
         }
 
+        if (comm->cuda_mem_enabled) {
+            while (req->exec_task != NULL) {
+                EXEC_TASK_TEST("failed to complete the nb memcpy", req->exec_task, comm->lib);
+            }
+        }
+
         comm->n_mcast_reliable++;
 
         for (;comm->last_acked < comm->psn; comm->last_acked++) {
@@ -270,7 +276,8 @@ ucc_status_t ucc_tl_mlx5_mcast_bcast_start(ucc_coll_task_t *coll_task)
         return ucc_task_complete(coll_task);
     }
 
-    coll_task->status = status;
+    coll_task->status                       = status;
+    task->bcast_mcast.req_handle->coll_task = coll_task;
 
     return ucc_progress_queue_enqueue(UCC_TL_CORE_CTX(mlx5_team)->pq, &task->super);
 }

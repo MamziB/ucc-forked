@@ -366,6 +366,8 @@ typedef struct ucc_tl_mlx5_mcast_coll_req {
     int                             last_pkt_len;
     int                             offset;
     ucc_memory_type_t               buf_mem_type;
+    ucc_ee_executor_task_t         *exec_task;
+    ucc_coll_task_t                *coll_task;
 } ucc_tl_mlx5_mcast_coll_req_t;
 
 typedef struct ucc_tl_mlx5_mcast_oob_p2p_context {
@@ -424,6 +426,21 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_post_recv_buffers(ucc_tl_mlx5_mcast
 
     return UCC_OK;
 }
+
+#define EXEC_TASK_TEST(_errmsg, _etask, _lib) do {                             \
+    if (_etask != NULL) {                                                      \
+        status = ucc_ee_executor_task_test(_etask);                            \
+        if (status > 0) {                                                      \
+            return status;                                                     \
+        }                                                                      \
+        ucc_ee_executor_task_finalize(_etask);                                 \
+        _etask = NULL;                                                         \
+        if (ucc_unlikely(status < 0)) {                                        \
+            tl_error(_lib, _errmsg);                                           \
+            return status;                                                     \
+        }                                                                      \
+    }                                                                          \
+} while(0)
 
 ucc_status_t ucc_tl_mlx5_mcast_team_init(ucc_base_context_t *tl_context,
                                          ucc_tl_mlx5_mcast_team_t **mcast_team,
