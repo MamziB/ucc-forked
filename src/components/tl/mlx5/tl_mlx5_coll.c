@@ -12,8 +12,12 @@ ucc_status_t ucc_tl_mlx5_bcast_mcast_init(ucc_base_coll_args_t *coll_args,
                                           ucc_base_team_t      *team,
                                           ucc_coll_task_t     **task_h)
 {
-    ucc_status_t        status = UCC_OK;
-    ucc_tl_mlx5_task_t *task   = NULL;
+    ucc_tl_mlx5_team_t *tl_team = ucc_derived_of(team, ucc_tl_mlx5_team_t);
+    ucc_status_t        status  = UCC_OK;
+    ucc_tl_mlx5_task_t *task    = NULL;
+    ucc_coll_task_t    *bcast_task;
+    ucc_schedule_t     *schedule;
+
     
     status = ucc_tl_mlx5_mcast_check_support(coll_args, team);
     if (UCC_OK != status) {
@@ -27,12 +31,36 @@ ucc_status_t ucc_tl_mlx5_bcast_mcast_init(ucc_base_coll_args_t *coll_args,
 
     task->super.finalize = ucc_tl_mlx5_task_finalize;
 
-    status = ucc_tl_mlx5_mcast_bcast_init(task);
+    status = ucc_tl_mlx5_get_schedule(tl_team, coll_args,
+                                     (ucc_tl_mlx5_schedule_t **)&schedule);
+    if (ucc_unlikely(UCC_OK != status)) {
+        return status;
+    }
+
+    status = ucc_tl_mlx5_mcast_bcast_init(task, coll_args);
     if (ucc_unlikely(UCC_OK != status)) {
         goto free_task;
     }
 
-    *task_h = &(task->super);
+    bcast_task = &(task->super);
+
+    status = ucc_schedule_add_task(schedule, bcast_task);
+    if (ucc_unlikely(UCC_OK != status)) {
+        goto free_task;
+    }
+
+    status = ucc_event_manager_subscribe(&schedule->super,
+                                         UCC_EVENT_SCHEDULE_STARTED,
+                                         bcast_task,
+                                         ucc_task_start_handler);
+    if (ucc_unlikely(UCC_OK != status)) {
+        goto free_task;
+    }
+
+    schedule->super.post = ucc_tl_mlx5_mcast_schedule_start;
+    schedule->super.progress = NULL;
+    schedule->super.finalize =  ucc_tl_mlx5_mcast_schedule_finalize;
+    *task_h = &schedule->super;
 
     tl_debug(UCC_TASK_LIB(task), "init coll task %p", task);
 
