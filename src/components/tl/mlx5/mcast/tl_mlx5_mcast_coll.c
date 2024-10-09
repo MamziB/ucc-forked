@@ -343,3 +343,21 @@ ucc_status_t ucc_tl_mlx5_mcast_bcast_init(ucc_tl_mlx5_task_t *task)
 
     return UCC_OK;
 }
+
+ucc_status_t ucc_tl_mlx5_mcast_schedule_start(ucc_coll_task_t *coll_task)
+{
+    return ucc_schedule_start(coll_task);
+}
+
+ucc_status_t ucc_tl_mlx5_mcast_schedule_finalize(ucc_coll_task_t *coll_task)
+{
+    ucc_status_t            status;
+    ucc_tl_mlx5_schedule_t *schedule =
+                ucc_derived_of(coll_task, ucc_tl_mlx5_schedule_t);
+
+    status = ucc_schedule_finalize(coll_task);
+
+    ucc_tl_mlx5_put_schedule(schedule);
+    return status;
+}
+
