@@ -336,10 +336,16 @@ ucc_status_t ucc_tl_mlx5_mcast_check_support(ucc_base_coll_args_t *coll_args,
     return UCC_OK;
 }
 
-ucc_status_t ucc_tl_mlx5_mcast_bcast_init(ucc_tl_mlx5_task_t *task)
+ucc_status_t ucc_tl_mlx5_mcast_bcast_init(ucc_tl_mlx5_task_t *task,
+                                          ucc_base_coll_args_t *coll_args)
 {
+    ucc_coll_args_t *args = &coll_args->args;
+
     task->super.post     = ucc_tl_mlx5_mcast_bcast_start;
     task->super.progress = ucc_tl_mlx5_mcast_collective_progress;
+    if (args->src.info.mem_type == UCC_MEMORY_TYPE_CUDA) {
+        task->super.flags    = UCC_COLL_TASK_FLAG_EXECUTOR;
+    }
 
     return UCC_OK;
 }
