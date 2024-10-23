@@ -12,7 +12,7 @@
 #include <inttypes.h>
 
 /* 32 here is the bit count of ib mcast packet's immediate data */
-#define TL_MLX5_MCAST_IB_IMMEDIATE_PACKET_BIT_COUNT 32
+#define TL_MLX5_MCAST_IB_IMMEDIATE_PACKET_BIT_COUNT 32u
 
 #define MCAST_GET_MAX_ALLGATHER_PACKET_COUNT(_max_count)                  \
 do {                                                                      \

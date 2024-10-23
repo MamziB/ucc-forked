@@ -36,10 +36,10 @@
 #define MAX_GROUP_COUNT   64
 
 /* Allgather RDMA-based reliability designs */
-#define ONE_SIDED_RELIABILITY_MAX_TEAM_SIZE 1023
+#define ONE_SIDED_RELIABILITY_MAX_TEAM_SIZE 1024u
 #define ONE_SIDED_SLOTS_COUNT               2                /* number of memory slots during async design */
 #define ONE_SIDED_SLOTS_INFO_SIZE           sizeof(uint32_t) /* size of metadata prepended to each slots in bytes */
-#define ONE_SIDED_MAX_ALLGATHER_COUNTER     31
+#define ONE_SIDED_MAX_ALLGATHER_COUNTER     32u
 #define ONE_SIDED_MAX_CONCURRENT_LEVEL      64
 
 enum ucc_tl_mlx5_mcast_one_sided_slot_states {
