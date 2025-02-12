@@ -113,6 +113,7 @@ typedef struct ucc_tl_mlx5_mcast_coll_comm_init_spec {
     int                               post_recv_thresh;
     int                               scq_moderation;
     int                               wsize;
+    int                               mcast_group_count;
     int                               max_push_send;
     int                               max_eager;
     int                               cuda_mem_enabled;
@@ -176,8 +177,8 @@ typedef struct ucc_tl_mlx5_mcast_coll_context {
 
 typedef struct ucc_tl_mlx5_mcast_join_info_t {
     ucc_status_t  status;
-    uint16_t      dlid;
-    union ibv_gid dgid;
+    uint16_t      dlid[MAX_GROUP_COUNT];
+    union ibv_gid dgid[MAX_GROUP_COUNT];
 } ucc_tl_mlx5_mcast_join_info_t;
 
 typedef struct ucc_tl_mlx5_mcast_context {
