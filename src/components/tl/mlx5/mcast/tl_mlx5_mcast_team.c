@@ -308,10 +308,14 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_process_comm_event(ucc_base_team_t 
     ucc_tl_mlx5_team_t            *tl_team = ucc_derived_of(team, ucc_tl_mlx5_team_t);
     ucc_tl_mlx5_mcast_coll_comm_t *comm    = tl_team->mcast->mcast_comm;
     ucc_status_t                   status  = UCC_OK;
-    int                            i;
     struct mcast_group            *group;
+    int                            i;
 
     for (i = 0; i < comm->mcast_group_count; i++) {
+        if (comm->mcast.groups[i].lid != 0) {
+            continue;
+        }
+
         status = ucc_tl_mlx5_mcast_join_mcast_get_event(comm->ctx, &comm->event);
         if (status != UCC_OK) {
             goto failed;
@@ -338,7 +342,9 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_process_comm_event(ucc_base_team_t 
     return UCC_OK;
 
 failed:
-    tl_team->mcast_state = TL_MLX5_TEAM_STATE_MCAST_GRP_JOIN_FAILED;
+    if (status < 0) {
+        tl_team->mcast_state = TL_MLX5_TEAM_STATE_MCAST_GRP_JOIN_FAILED;
+    }
     return status;
 }
 
@@ -368,8 +374,14 @@ ucc_status_t ucc_tl_mlx5_mcast_team_test(ucc_base_team_t *team)
                     comm->mcast.groups[i].mcast_addr = net_addr;
                 }
 
+                tl_team->mcast_state = TL_MLX5_TEAM_STATE_MCAST_GRP_JOIN_TEST;
+                return UCC_INPROGRESS;
+            }
+
+            case TL_MLX5_TEAM_STATE_MCAST_GRP_JOIN_TEST:
+            {
                 status = ucc_tl_mlx5_mcast_process_comm_event(team);
-                if (status != UCC_OK) {
+                if (status < UCC_OK) {
                     tl_error(comm->lib, "mcast_process_comm_event failed");
                 }
 
@@ -532,8 +544,14 @@ ucc_status_t ucc_tl_mlx5_mcast_team_test(ucc_base_team_t *team)
                     comm->mcast.groups[i].mcast_addr = net_addr;
                 }
 
+                tl_team->mcast_state = TL_MLX5_TEAM_STATE_MCAST_GRP_JOIN_TEST;
+                return UCC_INPROGRESS;
+            }
+
+            case TL_MLX5_TEAM_STATE_MCAST_GRP_JOIN_TEST:
+            {
                 status = ucc_tl_mlx5_mcast_process_comm_event(team);
-                if (status != UCC_OK) {
+                if (status < UCC_OK) {
                     tl_error(comm->lib, "mcast_process_comm_event failed");
                 }
 

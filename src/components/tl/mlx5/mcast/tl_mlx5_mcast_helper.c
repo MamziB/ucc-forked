@@ -227,9 +227,14 @@ ucc_status_t ucc_tl_mlx5_mcast_join_mcast_get_event(ucc_tl_mlx5_mcast_coll_conte
     const char *dst;
 
     if (rdma_get_cm_event(ctx->channel, event) < 0) {
-        tl_warn(ctx->lib, "rdma_get_cm_event failed, errno %d %s",
-                errno, strerror(errno));
-        return UCC_ERR_NO_RESOURCE;
+        if (EINTR != errno) {
+            tl_warn(ctx->lib, "rdma_get_cm_event failed, errno %d %s",
+                    errno, strerror(errno));
+            return UCC_ERR_NO_RESOURCE;
+        } else {
+            /* need to retry again */
+            return UCC_INPROGRESS;
+        }
     }
 
     if (RDMA_CM_EVENT_MULTICAST_JOIN != (*event)->event) {
