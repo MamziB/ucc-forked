@@ -220,27 +220,22 @@ ucc_status_t ucc_tl_mlx5_mcast_join_mcast_post(ucc_tl_mlx5_mcast_coll_context_t 
     return UCC_OK;
 }
 
-ucc_status_t ucc_tl_mlx5_mcast_join_mcast_test(ucc_tl_mlx5_mcast_coll_context_t *ctx,
-                                               struct rdma_cm_event            **event,
-                                               int                               is_root)
+ucc_status_t ucc_tl_mlx5_mcast_join_mcast_get_event(ucc_tl_mlx5_mcast_coll_context_t *ctx,
+                                                    struct rdma_cm_event            **event)
 {
     char        buf[40];
     const char *dst;
 
     if (rdma_get_cm_event(ctx->channel, event) < 0) {
-        if (EINTR != errno) {
-            tl_warn(ctx->lib, "rdma_get_cm_event failed, errno %d %s",
-                    errno, strerror(errno));
-            return UCC_ERR_NO_RESOURCE;
-        } else {
-            return UCC_INPROGRESS;
-        }
+        tl_warn(ctx->lib, "rdma_get_cm_event failed, errno %d %s",
+                errno, strerror(errno));
+        return UCC_ERR_NO_RESOURCE;
     }
 
     if (RDMA_CM_EVENT_MULTICAST_JOIN != (*event)->event) {
-        tl_warn(ctx->lib, "failed to join multicast, is_root %d. unexpected event was"
+        tl_warn(ctx->lib, "failed to join multicast, unexpected event was"
                 " received: event=%d, str=%s, status=%d",
-                 is_root, (*event)->event, rdma_event_str((*event)->event),
+                 (*event)->event, rdma_event_str((*event)->event),
                  (*event)->status);
         if (rdma_ack_cm_event(*event) < 0) {
             tl_warn(ctx->lib, "rdma_ack_cm_event failed");
@@ -254,7 +249,7 @@ ucc_status_t ucc_tl_mlx5_mcast_join_mcast_test(ucc_tl_mlx5_mcast_coll_context_t 
         return UCC_ERR_NO_RESOURCE;
     }
 
-    tl_debug(ctx->lib, "is_root %d: joined dgid: %s, mlid 0x%x, sl %d", is_root, buf,
+    tl_debug(ctx->lib, "joined dgid: %s, mlid 0x%x, sl %d", buf,
              (*event)->param.ud.ah_attr.dlid, (*event)->param.ud.ah_attr.sl);
 
     return UCC_OK;
@@ -553,25 +548,27 @@ ucc_status_t ucc_tl_mlx5_mcast_modify_rc_qps(ucc_tl_mlx5_mcast_coll_context_t *c
     return UCC_OK;
 }
 
-ucc_status_t ucc_tl_mlx5_fini_mcast_group(ucc_tl_mlx5_mcast_coll_context_t *ctx,
-                                          ucc_tl_mlx5_mcast_coll_comm_t    *comm)
+ucc_status_t ucc_tl_mlx5_leave_mcast_group(ucc_tl_mlx5_mcast_coll_context_t *ctx,
+                                           ucc_tl_mlx5_mcast_coll_comm_t    *comm)
 {
     char        buf[40];
     const char *dst;
     int         i;
 
     for (i = 0; i < comm->mcast_group_count; i++) {
-        dst = inet_ntop(AF_INET6, &comm->mcast.groups[i].mcast_addr, buf, 40);
-        if (NULL == dst) {
-            tl_error(comm->lib, "inet_ntop failed");
-            return UCC_ERR_NO_RESOURCE;
-        }
+        if (comm->mcast.groups[i].mcast_addr.sin6_flowinfo != 0) {
+            dst = inet_ntop(AF_INET6, &comm->mcast.groups[i].mcast_addr, buf, 40);
+            if (NULL == dst) {
+                tl_error(comm->lib, "inet_ntop failed");
+                return UCC_ERR_NO_RESOURCE;
+            }
 
-        tl_debug(ctx->lib, "mcast leave: ctx %p, comm %p, dgid: %s group %d", ctx, comm, buf, i);
+            tl_debug(ctx->lib, "mcast leave: ctx %p, comm %p, dgid: %s group %d", ctx, comm, buf, i);
 
-        if (rdma_leave_multicast(ctx->id, (struct sockaddr*)&comm->mcast.groups[i].mcast_addr)) {
-            tl_error(comm->lib, "mcast rmda_leave_multicast failed for group %d", i);
-            return UCC_ERR_NO_RESOURCE;
+            if (rdma_leave_multicast(ctx->id, (struct sockaddr*)&comm->mcast.groups[i].mcast_addr)) {
+                tl_error(comm->lib, "mcast rmda_leave_multicast failed for group %d", i);
+                return UCC_ERR_NO_RESOURCE;
+            }
         }
     }
 
@@ -624,7 +621,7 @@ ucc_status_t ucc_tl_mlx5_clean_mcast_comm(ucc_tl_mlx5_mcast_coll_comm_t *comm)
         }
     }
 
-    status = ucc_tl_mlx5_fini_mcast_group(comm->ctx, comm);
+    status = ucc_tl_mlx5_leave_mcast_group(comm->ctx, comm);
     if (status) {
         tl_error(comm->lib, "couldn't leave mcast group");
         return status;
