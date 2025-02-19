@@ -536,7 +536,6 @@ ucc_status_t ucc_tl_mlx5_mcast_modify_rc_qps(ucc_tl_mlx5_mcast_coll_context_t *c
         attr.max_dest_rd_atomic	   = 16;
         attr.min_rnr_timer         = 12;
         attr.ah_attr.is_global     = 0;
-        attr.ah_attr.dlid          = comm->mcast.rc_lid[i];
         attr.ah_attr.dlid          = comm->one_sided.info[i].port_lid;
         attr.ah_attr.sl            = DEF_SL;
         attr.ah_attr.src_path_bits = 0;
