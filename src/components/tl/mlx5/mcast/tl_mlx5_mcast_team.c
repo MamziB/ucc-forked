@@ -105,6 +105,8 @@ ucc_status_t ucc_tl_mlx5_mcast_team_init(ucc_base_context_t *base_context,
     comm->allgather_comm.truly_zero_copy_allgather_enabled
                                         = conf_params->truly_zero_copy_allgather_enabled;
     comm->one_sided.reliability_enabled = conf_params->one_sided_reliability_enable;
+    comm->one_sided.reliability_scheme_msg_threshold
+                                        = conf_params->reliability_scheme_msg_threshold;
     comm->bcast_comm.wsize              = conf_params->wsize;
     comm->allgather_comm.max_push_send  = conf_params->max_push_send;
     comm->max_eager                     = conf_params->max_eager;

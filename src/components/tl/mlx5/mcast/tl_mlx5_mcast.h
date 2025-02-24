@@ -119,6 +119,7 @@ typedef struct ucc_tl_mlx5_mcast_coll_comm_init_spec {
     int                               max_eager;
     int                               cuda_mem_enabled;
     int                               one_sided_reliability_enable;
+    int                               reliability_scheme_msg_threshold;
     int                               truly_zero_copy_allgather_enabled;
     int                               mcast_prepost_bucket_size;
     void                             *oob;
