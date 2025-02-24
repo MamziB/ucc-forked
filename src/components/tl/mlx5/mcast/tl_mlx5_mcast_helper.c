@@ -8,6 +8,7 @@
 #include <glob.h>
 #include <net/if.h>
 #include <ifaddrs.h>
+#include "tl_mlx5_mcast_one_sided_reliability.h"
 
 #define PREF        "/sys/class/net/"
 #define SUFF        "/device/resource"
@@ -642,6 +643,10 @@ ucc_status_t ucc_tl_mlx5_clean_mcast_comm(ucc_tl_mlx5_mcast_coll_comm_t *comm)
     if (status) {
         tl_error(comm->lib, "couldn't leave mcast group");
         return status;
+    }
+
+    if (comm->one_sided.reliability_enabled) {
+        ucc_tl_mlx5_mcast_one_sided_cleanup(comm);
     }
 
     if (comm->mcast.rcq) {
