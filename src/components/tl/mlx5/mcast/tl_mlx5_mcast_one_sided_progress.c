@@ -27,7 +27,7 @@ ucc_status_t ucc_tl_mlx5_mcast_reliable_one_sided_get(ucc_tl_mlx5_mcast_coll_com
     /* in sync design this function is only called once */
     ucc_assert(!(ONE_SIDED_SYNCHRONOUS_PROTO == req->one_sided_reliability_scheme &&
            comm->one_sided.rdma_read_in_progress));
-    for (target = 0; target < comm->commsize; target++) { 
+    for (target = 0; target < comm->commsize; target++) {
         if (comm->one_sided.recvd_pkts_tracker[target] == req->num_packets) {
             target_completed++;
             continue;
@@ -148,7 +148,7 @@ ucc_tl_mlx5_mcast_progress_one_sided_communication(ucc_tl_mlx5_mcast_coll_comm_t
 
             if (!comm->one_sided.pending_reads && (completed == comm->commsize)) {
                 tl_debug(comm->lib,
-                         "All the pending RDMA READ are comepleted in async reliablity protocol");
+                         "all the pending RDMA READ are comepleted in async reliablity protocol");
                 comm->one_sided.rdma_read_in_progress = 0;
                 req->to_recv                          = 0;
                 return UCC_OK;
@@ -158,7 +158,7 @@ ucc_tl_mlx5_mcast_progress_one_sided_communication(ucc_tl_mlx5_mcast_coll_comm_t
         case ONE_SIDED_SYNCHRONOUS_PROTO:
             if (!comm->one_sided.pending_reads) {
                 tl_debug(comm->lib,
-                         "All the pending RDMA READ are comepleted in sync reliablity protocol");
+                         "all the pending RDMA READ are comepleted in sync reliablity protocol");
                 comm->one_sided.rdma_read_in_progress = 0;
                 req->to_recv                          = 0;
                 return UCC_OK;
