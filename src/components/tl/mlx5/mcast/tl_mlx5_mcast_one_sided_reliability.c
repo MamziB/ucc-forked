@@ -93,8 +93,6 @@ ucc_tl_mlx5_mcast_one_sided_setup_reliability_buffers(ucc_tl_mlx5_mcast_coll_com
         comm->one_sided.info[comm->rank].rc_qp_num[i] = comm->mcast.rc_qp[i]->qp_num;
     }
 
-    tl_debug(comm->lib, "created the allgather reliability structures");
-
     return UCC_OK;
 
 failed:
@@ -183,16 +181,6 @@ ucc_status_t ucc_tl_mlx5_mcast_one_sided_reliability_init(ucc_tl_mlx5_mcast_coll
         goto failed;
     }
 
-     /* TODO double check if ucc inplace allgather is working properly */
-    status = comm->service_coll.allgather_post(comm->p2p_ctx, &(comm->one_sided.info[comm->rank])/*inplace*/, 
-                                               comm->one_sided.info,
-                                               sizeof(ucc_tl_mlx5_one_sided_reliable_team_info_t),
-                                               &comm->one_sided.reliability_req);
-    if (UCC_OK != status) {
-        tl_error(comm->lib, "oob allgather failed during one-sided reliability init");
-        goto failed;
-    }
-
     return status;
 
 failed:
@@ -207,14 +195,23 @@ ucc_status_t ucc_tl_mlx5_mcast_one_sided_reliability_test(ucc_tl_mlx5_mcast_coll
 {
     ucc_status_t status = UCC_OK;
 
-    if (comm->one_sided.reliability_req == NULL) {
+    if (!comm->one_sided.reliability_enabled) {
         return UCC_OK;
     }
 
-    /* check if the one sided config info is exchanged */
+    if (comm->one_sided.reliability_req == NULL) {
+        status = comm->service_coll.allgather_post(comm->p2p_ctx, &(comm->one_sided.info[comm->rank]),
+                                                   comm->one_sided.info,
+                                                   sizeof(ucc_tl_mlx5_one_sided_reliable_team_info_t),
+                                                   &comm->one_sided.reliability_req);
+        if (UCC_OK != status) {
+            tl_error(comm->lib, "oob allgather failed during one-sided reliability init");
+            goto failed;
+        }
+    }
+
     status = comm->service_coll.coll_test(comm->one_sided.reliability_req);
     if (UCC_OK != status) {
-        /* allgather is not completed yet */
         if (status < 0) {
             tl_error(comm->lib, "one sided config info exchange failed");
             goto failed;
@@ -229,6 +226,7 @@ ucc_status_t ucc_tl_mlx5_mcast_one_sided_reliability_test(ucc_tl_mlx5_mcast_coll
         goto failed;
     }
 
+    tl_debug(comm->lib, "support for allgather reliability is enabled");
     comm->one_sided.reliability_req = NULL;
     return UCC_OK;
 
