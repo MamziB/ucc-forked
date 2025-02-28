@@ -114,7 +114,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_reliablity_ready(ucc_tl_mlx5_mcast_
             }
             comm->one_sided.sendbuf_memkey_list[comm->rank].rkey        = req->mr->rkey;
             comm->one_sided.sendbuf_memkey_list[comm->rank].remote_addr = (uint64_t)req->ptr;
-            tl_trace(comm->lib, "Allgather over sendbuf addresses/rkey: address %p rkey %d",
+            tl_trace(comm->lib, "allgather over sendbuf addresses/rkey: address %p rkey %d",
                      req->ptr, req->mr->rkey);
             status = comm->service_coll.allgather_post(comm->p2p_ctx,
                                                        &(comm->one_sided.sendbuf_memkey_list[comm->rank]),
@@ -206,7 +206,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_do_staging_based_allgather(void *re
 
     if (comm->one_sided.reliability_enabled) {
         status = ucc_tl_mlx5_mcast_check_collective(comm, req);
-        if (UCC_INPROGRESS != status && UCC_OK != status) {
+        if (status < 0) {
             return status;
         }
     }

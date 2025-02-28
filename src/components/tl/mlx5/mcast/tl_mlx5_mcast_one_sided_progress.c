@@ -32,8 +32,6 @@ ucc_status_t ucc_tl_mlx5_mcast_reliable_one_sided_get(ucc_tl_mlx5_mcast_coll_com
             target_completed++;
             continue;
         }
-        tl_trace(comm->lib, "%d of the packets from source target %d are dropped",
-                req->num_packets - comm->one_sided.recvd_pkts_tracker[target], target);
         if (NULL == req->recv_rreg) {
             tl_debug(comm->lib, "registering recv buf of size %ld", comm->commsize * req->length);
             status = ucc_tl_mlx5_mcast_mem_register(comm->ctx, req->rptr, comm->commsize * req->length, &reg);
@@ -54,13 +52,13 @@ ucc_status_t ucc_tl_mlx5_mcast_reliable_one_sided_get(ucc_tl_mlx5_mcast_coll_com
                      * the content of this data is copied from send buffer by remote
                      * process */
                     src_addr    = PTR_OFFSET(req->rptr, (req->length * target));
-                    remote_addr = PTR_OFFSET(comm->one_sided.sendbuf_memkey_list[target].remote_addr,
+                    remote_addr = PTR_OFFSET(comm->one_sided.info[target].slot_mem.remote_addr,
                                              ((req->ag_counter %
                                               ONE_SIDED_SLOTS_COUNT) *
                                               comm->one_sided.slot_size +
                                               ONE_SIDED_SLOTS_INFO_SIZE));
                     lkey        = req->recv_mr->lkey;
-                    rkey        = comm->one_sided.sendbuf_memkey_list[target].rkey;
+                    rkey        = comm->one_sided.info[target].slot_mem.rkey;
                     size        = req->length;
                     wr          = MCAST_AG_RDMA_READ_WR;
                     comm->one_sided.pending_reads++;
@@ -72,11 +70,11 @@ ucc_status_t ucc_tl_mlx5_mcast_reliable_one_sided_get(ucc_tl_mlx5_mcast_coll_com
                     /* remote slot is not valid yet. Need to do an rdma
                      * read to check the latest state */
                     src_addr    = &comm->one_sided.remote_slot_info[target];
-                    remote_addr = PTR_OFFSET(comm->one_sided.sendbuf_memkey_list[target].remote_addr,
+                    remote_addr = PTR_OFFSET(comm->one_sided.info[target].slot_mem.remote_addr,
                                              ((req->ag_counter % ONE_SIDED_SLOTS_COUNT) *
                                              comm->one_sided.slot_size));
                     lkey        = comm->one_sided.remote_slot_info_mr->lkey;
-                    rkey        = comm->one_sided.sendbuf_memkey_list[target].rkey;
+                    rkey        = comm->one_sided.info[target].slot_mem.rkey;
                     size        = ONE_SIDED_SLOTS_INFO_SIZE;
                     wr          = MCAST_AG_RDMA_READ_INFO_WR;
 

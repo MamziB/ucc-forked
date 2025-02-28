@@ -18,11 +18,11 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_poll_send(ucc_tl_mlx5_mcast_coll_co
     struct ibv_wc     wc[POLL_PACKED];
 
     num_comp = ibv_poll_cq(comm->mcast.scq, POLL_PACKED, &wc[0]);
-    tl_trace(comm->lib, "Polled send completions: %d", num_comp);
     if (num_comp < 0) {
         tl_error(comm->lib, "send queue poll completion failed %d", num_comp);
         return UCC_ERR_NO_MESSAGE;
     } else if (num_comp > 0) {
+        tl_trace(comm->lib, "polled send completions: %d", num_comp);
         for (int i = 0 ; i < num_comp ; i++) {
             if (IBV_WC_SUCCESS != wc[i].status) {
                 tl_warn(comm->lib, "mcast_poll_send: %s err %d num_comp %d op %ld wr_id\n",
