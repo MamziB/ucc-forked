@@ -91,6 +91,7 @@ INSTANTIATE_TEST_SUITE_P(, test_tl_mlx5_transpose,
                                             ::testing::Values(1, 5, 32, 64),
                                             ::testing::Values(1, 3, 8, 128)));
 
+#if 0
 UCC_TEST_P(test_tl_mlx5_rdma_write, RdmaWriteWqe)
 {
     struct ibv_sge     sg;
@@ -122,6 +123,71 @@ UCC_TEST_P(test_tl_mlx5_rdma_write, RdmaWriteWqe)
 
     validate_buffers();
 }
+#endif
+
+UCC_TEST_P(test_tl_mlx5_rdma_write, RdmaWriteWqe)
+{
+    struct ibv_sge     sg;
+    struct ibv_send_wr wr;
+
+    bufsize = GetParam();
+    buffers_init();
+    CHECK_TEST_STATUS();
+
+    memset(&sg, 0, sizeof(sg));
+    sg.addr   = (uintptr_t)src;
+    sg.length = bufsize;
+    sg.lkey   = src_mr->lkey;
+
+    memset(&wr, 0, sizeof(wr));
+    wr.wr_id               = 0;
+    wr.sg_list             = &sg;
+    wr.num_sge             = 1;
+    wr.opcode              = IBV_WR_RDMA_WRITE;
+    wr.send_flags          = IBV_SEND_SIGNALED | IBV_SEND_FENCE;
+    wr.next                = NULL;
+    wr.wr.rdma.remote_addr = (uintptr_t)dst;
+    wr.wr.rdma.rkey        = dst_mr->rkey;
+
+    // Debugging: Print buffer details before RDMA Write
+    printf("Debug: bufsize = %u\n", bufsize);
+    printf("Debug: Source buffer address: %p, length: %u, lkey: 0x%x\n", src, bufsize, src_mr->lkey);
+    printf("Debug: Destination buffer address: %p, rkey: 0x%x\n", dst, dst_mr->rkey);
+    
+    printf("Debug: src buffer data (first 16 bytes):\n");
+    for (size_t i = 0; i < (bufsize < 16 ? bufsize : 16); i++) {
+        printf("%02x ", ((unsigned char*)src)[i]);
+    }
+    printf("\n");
+
+    printf("Debug: dst buffer data before write (first 16 bytes):\n");
+    for (size_t i = 0; i < (bufsize < 16 ? bufsize : 16); i++) {
+        printf("%02x ", ((unsigned char*)dst)[i]);
+    }
+    printf("\n");
+
+    // Post RDMA Write
+    int ret = ibv_post_send(qp.qp, &wr, NULL);
+    if (ret) {
+        printf("Error: ibv_post_send() failed with error code %d (%s)\n", ret, strerror(errno));
+    }
+    GTEST_ASSERT_EQ(ret, 0);
+
+    wait_for_completion();
+    CHECK_TEST_STATUS();
+
+    // Debugging: Print buffer details after RDMA Write
+    printf("Debug: RDMA Write completed.\n");
+
+    printf("Debug: dst buffer data after write (first 16 bytes):\n");
+    for (size_t i = 0; i < (bufsize < 16 ? bufsize : 16); i++) {
+        printf("%02x ", ((unsigned char*)dst)[i]);
+    }
+    printf("\n");
+
+    validate_buffers();
+}
+
 
 UCC_TEST_P(test_tl_mlx5_rdma_write, CustomRdmaWriteWqe)
 {

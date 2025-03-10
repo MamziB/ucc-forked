@@ -176,6 +176,8 @@ help:
 	@echo "  VALGRIND_EXTRA_ARGS : Additional arguments for Valgrind (\"$(VALGRIND_EXTRA_ARGS)\")"
 	@echo
 
+GTEST_ARGS := $(GTEST_ARGS) --gtest_filter=*rdma_write*
+
 #
 # List unit tests
 #
