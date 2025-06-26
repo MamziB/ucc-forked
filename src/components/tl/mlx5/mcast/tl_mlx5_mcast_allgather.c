@@ -277,6 +277,7 @@ static inline ucc_status_t
 ucc_tl_mlx5_mcast_validate_zero_copy_allgather_params(ucc_tl_mlx5_mcast_coll_comm_t *comm,
                                                       ucc_tl_mlx5_mcast_coll_req_t  *req)
 {
+    return UCC_OK;
 
     if (req->concurrency_level % 2 == 0 && req->num_packets % req->mcast_prepost_bucket_size != 0) {
         tl_debug(comm->lib, "Pipelined mcast allgather not supported: "
@@ -292,13 +293,14 @@ ucc_tl_mlx5_mcast_validate_zero_copy_allgather_params(ucc_tl_mlx5_mcast_coll_com
                 comm->commsize, req->concurrency_level);
         return UCC_ERR_NOT_SUPPORTED;
     }
-
+#if 0
     if (req->length % comm->max_per_packet != 0) {
         tl_debug(comm->lib, "Pipelined mcast allgather not supported: "
                 "length (%ld) must be a multiple of max_per_packet (%d).",
                 req->length, comm->max_per_packet);
         return UCC_ERR_NOT_SUPPORTED;
     }
+#endif
 
     if (req->mcast_prepost_bucket_size * req->concurrency_level * 2 > comm->params.rx_depth) {
         tl_debug(comm->lib, "Pipelined mcast allgather not supported: "

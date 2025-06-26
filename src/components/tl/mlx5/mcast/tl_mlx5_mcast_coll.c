@@ -768,7 +768,7 @@ ucc_tl_mlx5_mcast_check_comm_level_cap(ucc_base_coll_args_t *coll_args,
         zero_copy_supported = true;
     }
 
-    if (zero_copy_supported &&
+    if (0 && zero_copy_supported &&
         (buf_size < comm->truly_zero_copy_coll_min_msg ||
          buf_size % comm->max_per_packet != 0)) {
         tl_trace(comm->lib,

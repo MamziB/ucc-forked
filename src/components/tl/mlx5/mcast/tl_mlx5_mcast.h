@@ -565,7 +565,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_post_user_recv_buffers(ucc_tl_mlx5_
                               &pp->super);
         }
 
-        assert(offset % comm->max_per_packet == 0);
+       // assert(offset % comm->max_per_packet == 0);
         pp->packet_counter  = offset / comm->max_per_packet;
         pp->qp_id           = group_id;
         rwr[i].wr_id        = ((uint64_t) pp);

@@ -317,7 +317,7 @@ static inline ucc_status_t ucc_tl_mlx5_mcast_send_collective(ucc_tl_mlx5_mcast_c
         __builtin_prefetch((void*) pp->buf);
         __builtin_prefetch(req->ptr + offset);
 
-        length      = comm->max_per_packet;
+        length      = req->length < comm->max_per_packet ? req->length : comm->max_per_packet;
         pp->length  = length;
 
         // generate psn to be used as immediate data
